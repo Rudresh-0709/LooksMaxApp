@@ -20,21 +20,14 @@ def get_recent_images(user_folder_path, count=3):
         all_files.extend(glob.glob(os.path.join(user_folder_path, ext)))
     
     if not all_files:
-        return [] # No images found
-        
-    # 2. Determine Recency (Sort by Modification Time)
-    # The 'key' function uses os.path.getmtime to get the last modification timestamp
-    # 'reverse=True' sorts from newest (highest time) to oldest
+        return [] 
     all_files.sort(key=os.path.getmtime, reverse=True)
     
     # Select the top N (3) recent files
     recent_files = all_files[:count]
-    print("Recent files selected:")
-    for f in recent_files:
-        print(f)
     
     base64_parts = []
-    
+    base64_list = []
     # 3. Select, Read, and Convert
     for file_path in recent_files:
         try:
@@ -53,6 +46,8 @@ def get_recent_images(user_folder_path, count=3):
                 
             # Convert to Base64
             base64_string = base64.b64encode(binary_data).decode('utf-8')
+            base64_string = base64_string + '=' * (-len(base64_string) % 4)  # ensure padding
+
             
             # Append the structured data for the API call
             base64_parts.append({
@@ -68,3 +63,26 @@ def get_recent_images(user_folder_path, count=3):
             
     return base64_parts
 
+def get_only_recent_images(user_folder_path, count=3):
+    """
+    Identifies the 'count' most recently modified image files in a directory,
+    reads them, and returns a list of Base64-encoded strings and their MIME types.
+    """
+    
+    # Define a list of expected image extensions
+    IMAGE_EXTENSIONS = ['*.jpg', '*.jpeg', '*.png']
+    
+    all_files = []
+    
+    # 1. Identify and Locate Files
+    for ext in IMAGE_EXTENSIONS:
+        # glob finds all files matching the pattern
+        all_files.extend(glob.glob(os.path.join(user_folder_path, ext)))
+    
+    if not all_files:
+        return [] 
+    all_files.sort(key=os.path.getmtime, reverse=True)
+    
+    # Select the top N (3) recent files
+    recent_files = all_files[:count]
+    return recent_files

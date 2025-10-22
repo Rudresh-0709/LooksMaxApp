@@ -3,10 +3,10 @@ import os
 from backend.app.services.llm_pipeline.prompts import (JAWLINE_PROMPT,SMILE_PROMPT,SKIN_PROMPT,CHEEKBONE_PROMPT,EYELINE_PROMPT)
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
-from transformers import AutoProcessor, AutoModelForVision2Seq, AutoModelForCausalLM
-import torch
-from qwen_vl_utils import process_vision_info  # Assuming this file is available
 from PIL import Image
+import base64
+from openai import OpenAI
+import sys
 
 load_dotenv()
 
@@ -70,16 +70,116 @@ gemini_eyeline = gemini_llm.invoke([
 ])
 eyeline_gemini_output=gemini_eyeline.content
 
-model_path="lmms-lab/LLaVA-OneVision-1.5"
-# processor = AutoProcessor.from_pretrained(model_id)
-# model = AutoModelForVision2Seq.from_pretrained(
-#     model_id,
-#     torch_dtype=torch.float16,
-#     device_map="auto"
-# )
+def encode_image_to_base64(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
 
-get_only_recent_images(FACIAL_IMAGES_PATH)
-model = AutoModelForCausalLM.from_pretrained(
-    model_path, torch_dtype="auto", device_map="auto", trust_remote_code=True
-)
-processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+def process_with_llama(image_paths, gemini_outputs):
+    print("Processing with Llama model...")
+    try:
+        client = OpenAI(
+            base_url="https://router.huggingface.co/v1",
+            api_key=os.getenv("HF_TOKEN"),
+        )
+
+        # Prepare base64 images
+        image_contents = []
+        for i, path in enumerate(image_paths[:3], 1):
+            base64_image = encode_image_to_base64(path)
+            view_type = "45-degree view" if i == 1 else "profile view" if i == 2 else "frontal view"
+            image_contents.extend([
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64_image}"
+                    }
+                },
+                {
+                    "type": "text",
+                    "text": f"Image {i}: {view_type}"
+                }
+            ])
+
+        analysis_prompt = f"""
+        Based on the Gemini analysis:
+
+        JAWLINE: {gemini_outputs['jawline']}
+        SMILE: {gemini_outputs['smile']}
+        SKIN: {gemini_outputs['skin']}
+        CHEEKBONES: {gemini_outputs['cheekbone']}
+        EYELINE: {gemini_outputs['eyeline']}
+
+        Analyze each feature compared to professional model standards and provide a rating out of 10. 
+        Return the response in this exact JSON format:
+
+        {{
+            "jawline": {{
+                "rating": <number>,
+                "description": "<detailed explanation>"
+            }},
+            "smile": {{
+                "rating": <number>,
+                "description": "<detailed explanation>"
+            }},
+            "skin": {{
+                "rating": <number>,
+                "description": "<detailed explanation>"
+            }},
+            "cheekbones": {{
+                "rating": <number>,
+                "description": "<detailed explanation>"
+            }},
+            "eyeline": {{
+                "rating": <number>,
+                "description": "<detailed explanation>"
+            }}
+        }}
+
+        Be brutally honest in your ratings and descriptions. Only return the JSON, no other text.
+        """
+
+        # Add the prompt to image contents
+        image_contents.append({
+            "type": "text",
+            "text": analysis_prompt
+        })
+
+        print("Generating response...")
+        completion = client.chat.completions.create(
+            model="meta-llama/Llama-4-Scout-17B-16E-Instruct:groq",
+            messages=[{
+                "role": "user",
+                "content": image_contents
+            }]
+        )
+
+        return completion.choices[0].message.content
+
+    except Exception as e:
+        print(f"Error processing with Llama: {e}")
+        raise
+
+if __name__ == "__main__":
+    try:
+        # Collect Gemini outputs
+        gemini_outputs = {
+            'jawline': jawline_gemini_output,
+            'smile': smile_gemini_output,
+            'skin': skin_gemini_output,
+            'cheekbone': cheekbone_gemini_output,
+            'eyeline': eyeline_gemini_output
+        }
+
+        # Get image paths
+        image_paths = get_only_recent_images(FACIAL_IMAGES_PATH)
+        if len(image_paths) < 3:
+            raise ValueError(f"Found only {len(image_paths)} images. Need 3 for assessment.")
+
+        # Process with Llama
+        llama_output = process_with_llama(image_paths, gemini_outputs)
+        print("\nLlama Model Output:")
+        print(llama_output)
+
+    except Exception as e:
+        print(f"Failed to process with Llama: {e}")
+        sys.exit(1)
