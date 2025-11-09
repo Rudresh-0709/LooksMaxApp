@@ -1,0 +1,17 @@
+diff --git a/node_modules/react-native-screens/android/build.gradle b/node_modules/react-native-screens/android/build.gradle
+index 23446c6..75ca228 100644
+--- a/node_modules/react-native-screens/android/build.gradle
++++ b/node_modules/react-native-screens/android/build.gradle
+@@ -82,9 +82,9 @@ def resolveReactNativeDirectory() {
+ }
+ 
+ // spotless is only accessible within react-native-screens repo
+-if (isRunningInContextOfScreensRepo()) {
+-    apply from: 'spotless.gradle'
+-}
++// if (isRunningInContextOfScreensRepo()) {
++//     apply from: 'spotless.gradle'
++// }
+ 
+ if (isNewArchitectureEnabled()) {
+     apply plugin: "com.facebook.react"
