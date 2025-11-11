@@ -1,90 +1,66 @@
 package com.looksmaxapp.features.mindfulness.accessibility
 
-import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.AccessibilityServiceInfo
-import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import com.looksmaxapp.features.mindfulness.MindfulManager
-import com.looksmaxapp.features.mindfulness.data.MindfulDatabase
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import com.looksmaxapp.features.mindfulness.data.GestureEvent
 
 /**
- * Accessibility service that tracks scroll events for mindful usage detection
+ * Parses AccessibilityEvents into GestureEvent objects
  */
-class MindfulAccessibilityService : AccessibilityService() {
+class AccessibilityEventParser {
     
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private lateinit var database: MindfulDatabase
-    private lateinit var eventParser: AccessibilityEventParser
-    private lateinit var mindfulManager: MindfulManager
+    private var lastScrollTimestamp: Long = 0
+    private var lastScrollDeltaY: Int = 0
     
-    companion object {
-        private const val TAG = "MindfulAccessibility"
-        var isServiceRunning = false
-            private set
-    }
-    
-    override fun onServiceConnected() {
-        super.onServiceConnected()
-        
-        // Configure the service
-        val info = AccessibilityServiceInfo().apply {
-            eventTypes = AccessibilityEvent.TYPE_VIEW_SCROLLED
-            feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            flags = AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
-            notificationTimeout = 100
-        }
-        serviceInfo = info
-        
-        // Initialize components
-        database = MindfulDatabase.getDatabase(applicationContext)
-        eventParser = AccessibilityEventParser()
-        mindfulManager = MindfulManager.getInstance(applicationContext)
-        
-        isServiceRunning = true
-        Log.d(TAG, "Mindful Accessibility Service connected")
-    }
-    
-    override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        // Only process scroll events
+    /**
+     * Parse a scroll event from AccessibilityEvent
+     */
+    fun parseScrollEvent(event: AccessibilityEvent): GestureEvent? {
         if (event.eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED) {
-            return
+            return null
         }
         
-        // Parse the event
-        val gestureEvent = eventParser.parseScrollEvent(event) ?: return
+        val currentTime = System.currentTimeMillis()
+        val scrollDeltaY = event.scrollDeltaY
+        val scrollDeltaX = event.scrollDeltaX
+        val packageName = event.packageName?.toString() ?: "unknown"
         
-        // Filter out insignificant scrolls
-        if (!eventParser.isSignificantScroll(gestureEvent)) {
-            return
+        // Calculate duration between scrolls
+        val duration = if (lastScrollTimestamp > 0) {
+            currentTime - lastScrollTimestamp
+        } else {
+            0L
         }
         
-        // Store in database
-        serviceScope.launch {
-            try {
-                database.gestureEventDao().insert(gestureEvent)
-                
-                // Notify manager about new scroll event
-                mindfulManager.onScrollEvent(gestureEvent)
-                
-                Log.d(TAG, "Logged scroll: ${gestureEvent.scrollDeltaY}px at ${gestureEvent.velocity}px/s in ${gestureEvent.packageName}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error saving gesture event", e)
-            }
+        // Calculate velocity (pixels per second)
+        val velocity = if (duration > 0) {
+            (scrollDeltaY.toFloat() / duration) * 1000f
+        } else {
+            0f
         }
+        
+        lastScrollTimestamp = currentTime
+        lastScrollDeltaY = scrollDeltaY
+        
+        return GestureEvent(
+            timestamp = currentTime,
+            scrollDeltaY = scrollDeltaY,
+            scrollDeltaX = scrollDeltaX,
+            packageName = packageName,
+            duration = duration,
+            velocity = Math.abs(velocity)
+        )
     }
     
-    override fun onInterrupt() {
-        Log.d(TAG, "Service interrupted")
+    /**
+     * Check if the scroll event is significant enough to track
+     * (filters out minor scrolls)
+     */
+    fun isSignificantScroll(event: GestureEvent): Boolean {
+        return Math.abs(event.scrollDeltaY) > 50 || Math.abs(event.scrollDeltaX) > 50
     }
     
-    override fun onDestroy() {
-        super.onDestroy()
-        isServiceRunning = false
-        eventParser.reset()
-        Log.d(TAG, "Service destroyed")
+    fun reset() {
+        lastScrollTimestamp = 0
+        lastScrollDeltaY = 0
     }
 }

@@ -1,201 +1,136 @@
-"""
-Data Collection Script for Mindful Scroll Detection
+package com.looksmaxapp.features.mindfulness.ui
 
-This script helps you collect and label training data from your Android app.
-Run this while using the app and label your behavior.
-"""
+import android.app.Service
+import android.content.Intent
+import android.graphics.PixelFormat
+import android.os.Build
+import android.os.IBinder
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.WindowManager
+import android.widget.Button
+import android.widget.TextView
+import kotlinx.coroutines.*
 
-import subprocess
-import time
-import csv
-from datetime import datetime
-from pathlib import Path
-
-# Configuration
-DATASET_DIR = Path("dataset")
-RAW_LOGS_FILE = DATASET_DIR / "raw_logs.csv"
-LABELS_FILE = DATASET_DIR / "labels.csv"
-
-# Create dataset directory
-DATASET_DIR.mkdir(exist_ok=True)
-
-def init_csv_files():
-    """Initialize CSV files with headers"""
-    if not RAW_LOGS_FILE.exists():
-        with open(RAW_LOGS_FILE, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                'timestamp',
-                'scroll_delta_y',
-                'scroll_delta_x',
-                'package_name',
-                'duration',
-                'velocity'
-            ])
+/**
+ * Service that shows an overlay warning when addictive scroll patterns are detected
+ */
+class MindfulOverlayService : Service() {
     
-    if not LABELS_FILE.exists():
-        with open(LABELS_FILE, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                'start_timestamp',
-                'end_timestamp',
-                'label',
-                'notes'
-            ])
-
-def pull_data_from_device():
-    """Pull gesture event data from Android device"""
-    print("Pulling data from device...")
+    private var windowManager: WindowManager? = null
+    private var overlayView: View? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
-    # Pull the database file from device
-    # Adjust the path based on your app's package name
-    db_path = "/data/data/com.looksmaxapp/databases/mindful_database"
-    local_path = DATASET_DIR / "mindful_database"
+    companion object {
+        private const val TAG = "MindfulOverlay"
+        private const val AUTO_DISMISS_DELAY = 10_000L // Auto-dismiss after 10 seconds
+    }
     
-    try:
-        subprocess.run([
-            "adb", "pull", db_path, str(local_path)
-        ], check=True)
-        print(f"✓ Database pulled successfully to {local_path}")
-        return True
-    except subprocess.CalledProcessError:
-        print("✗ Failed to pull database. Make sure:")
-        print("  1. Device is connected via ADB")
-        print("  2. App is installed and has run")
-        print("  3. App has stored some data")
-        return False
-
-def export_data_from_db():
-    """Export data from SQLite database to CSV"""
-    import sqlite3
+    override fun onBind(intent: Intent?): IBinder? = null
     
-    db_path = DATASET_DIR / "mindful_database"
-    if not db_path.exists():
-        print("Database file not found!")
-        return
+    override fun onCreate() {
+        super.onCreate()
+        windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+    }
     
-    conn = sqlite3.connect(str(db_path))
-    cursor = conn.cursor()
-    
-    # Get all gesture events
-    cursor.execute("""
-        SELECT timestamp, scrollDeltaY, scrollDeltaX, packageName, duration, velocity
-        FROM gesture_events
-        ORDER BY timestamp
-    """)
-    
-    rows = cursor.fetchall()
-    
-    # Append to raw logs
-    with open(RAW_LOGS_FILE, 'a', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerows(rows)
-    
-    conn.close()
-    print(f"✓ Exported {len(rows)} events to {RAW_LOGS_FILE}")
-
-def label_session():
-    """Interactive session labeling"""
-    print("\n" + "="*50)
-    print("SESSION LABELING")
-    print("="*50)
-    print("\nAfter using your phone, label your behavior:")
-    print("  0 = Normal browsing (reading, casual scrolling)")
-    print("  1 = Addictive pattern (shorts/reels, mindless scrolling)")
-    print()
-    
-    start_time = input("Start timestamp (or press Enter to use 5 min ago): ").strip()
-    if not start_time:
-        start_time = int((datetime.now().timestamp() - 300) * 1000)  # 5 min ago
-    else:
-        start_time = int(start_time)
-    
-    end_time = input("End timestamp (or press Enter to use now): ").strip()
-    if not end_time:
-        end_time = int(datetime.now().timestamp() * 1000)
-    else:
-        end_time = int(end_time)
-    
-    label = input("Label (0=normal, 1=addictive): ").strip()
-    while label not in ['0', '1']:
-        print("Invalid! Enter 0 or 1")
-        label = input("Label (0=normal, 1=addictive): ").strip()
-    
-    notes = input("Notes (optional): ").strip()
-    
-    # Save label
-    with open(LABELS_FILE, 'a', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow([start_time, end_time, label, notes])
-    
-    print(f"✓ Labeled session: {start_time} to {end_time} as {label}")
-
-def show_menu():
-    """Show main menu"""
-    print("\n" + "="*50)
-    print("MINDFUL SCROLL - DATA COLLECTION")
-    print("="*50)
-    print("\n1. Pull data from device")
-    print("2. Label a session")
-    print("3. View statistics")
-    print("4. Exit")
-    print()
-
-def show_statistics():
-    """Show current dataset statistics"""
-    try:
-        # Count raw logs
-        with open(RAW_LOGS_FILE, 'r') as f:
-            raw_count = sum(1 for _ in f) - 1  # Exclude header
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val confidence = intent?.getFloatExtra("confidence", 0f) ?: 0f
+        val scrollFrequency = intent?.getFloatExtra("scroll_frequency", 0f) ?: 0f
         
-        # Count labels
-        with open(LABELS_FILE, 'r') as f:
-            labels = list(csv.DictReader(f))
-            label_count = len(labels)
-            normal_count = sum(1 for l in labels if l['label'] == '0')
-            addictive_count = sum(1 for l in labels if l['label'] == '1')
+        showOverlay(confidence, scrollFrequency)
         
-        print("\n" + "="*50)
-        print("DATASET STATISTICS")
-        print("="*50)
-        print(f"Raw scroll events: {raw_count}")
-        print(f"Labeled sessions: {label_count}")
-        print(f"  - Normal: {normal_count}")
-        print(f"  - Addictive: {addictive_count}")
-        print()
+        // Auto-dismiss after delay
+        scope.launch {
+            delay(AUTO_DISMISS_DELAY)
+            dismissOverlay()
+        }
         
-        if label_count > 0:
-            balance = min(normal_count, addictive_count) / max(normal_count, addictive_count)
-            print(f"Class balance: {balance:.2%}")
-            if balance < 0.5:
-                print("⚠ Warning: Classes are imbalanced. Try to collect more of the minority class.")
+        return START_NOT_STICKY
+    }
     
-    except FileNotFoundError:
-        print("No data collected yet!")
-
-def main():
-    """Main collection loop"""
-    print("Mindful Scroll Pattern - Data Collection Tool")
-    print("Make sure your Android device is connected via ADB")
-    
-    init_csv_files()
-    
-    while True:
-        show_menu()
-        choice = input("Choose an option: ").strip()
+    private fun showOverlay(confidence: Float, scrollFrequency: Float) {
+        // Remove existing overlay if present
+        dismissOverlay()
         
-        if choice == '1':
-            if pull_data_from_device():
-                export_data_from_db()
-        elif choice == '2':
-            label_session()
-        elif choice == '3':
-            show_statistics()
-        elif choice == '4':
-            print("Goodbye!")
-            break
-        else:
-            print("Invalid choice!")
-
-if __name__ == "__main__":
-    main()
+        // Create overlay view (you'll need to create a proper layout XML)
+        overlayView = createOverlayView(confidence, scrollFrequency)
+        
+        // Set up window parameters
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            },
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.CENTER
+        }
+        
+        // Add view to window
+        try {
+            windowManager?.addView(overlayView, params)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
+    private fun createOverlayView(confidence: Float, scrollFrequency: Float): View {
+        // This is a simplified version - you should create a proper layout XML
+        val view = LayoutInflater.from(this).inflate(
+            android.R.layout.simple_list_item_1, // Temporary - create proper layout
+            null
+        )
+        
+        // For now, using a simple TextView as placeholder
+        // TODO: Create proper warning_overlay.xml layout
+        val textView = view.findViewById<TextView>(android.R.id.text1)
+        textView.apply {
+            text = """
+                ⚠️ Mindful Moment
+                
+                You've been scrolling rapidly for a while.
+                This pattern suggests you might be mindlessly consuming content.
+                
+                Confidence: ${(confidence * 100).toInt()}%
+                Scroll Rate: ${scrollFrequency.toInt()} swipes/min
+                
+                Take a break?
+            """.trimIndent()
+            textSize = 16f
+            setPadding(40, 40, 40, 40)
+            setBackgroundColor(0xDD000000.toInt())
+            setTextColor(0xFFFFFFFF.toInt())
+        }
+        
+        // Add dismiss button
+        view.setOnClickListener {
+            dismissOverlay()
+        }
+        
+        return view
+    }
+    
+    private fun dismissOverlay() {
+        overlayView?.let { view ->
+            try {
+                windowManager?.removeView(view)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        overlayView = null
+        stopSelf()
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        dismissOverlay()
+        scope.cancel()
+    }
+}
