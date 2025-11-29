@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project: NEON DETECTIVE</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Lato', sans-serif;
+            user-select: none;
+        }
+
+        /* UI OVERLAYS */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* TOP HUD */
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+        }
+        
+        .title {
+            font-family: 'Cinzel', serif;
+            color: #c8aa6e; /* Gold */
+            font-size: 24px;
+            text-shadow: 0 0 10px rgba(200, 170, 110, 0.5);
+        }
+
+        .stats {
+            color: #0AC8B9; /* Teal */
+            font-family: monospace;
+            font-size: 16px;
+        }
+
+        /* DIALOGUE BOX (Bottom) */
+        #dialogue-box {
+            pointer-events: auto;
+            margin: 20px 100px;
+            background: rgba(20, 20, 25, 0.95);
+            border: 2px solid #c8aa6e;
+            padding: 20px;
+            display: none; /* Hidden by default */
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            position: relative;
+        }
+
+        .speaker-name {
+            font-family: 'Cinzel', serif;
+            color: #c8aa6e;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .dialogue-text {
+            color: #e0e0e0;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .options {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: #1a1c29;
+            border: 1px solid #444;
+            color: #aaa;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            border-color: #0AC8B9;
+            color: #0AC8B9;
+            background: rgba(10, 200, 185, 0.1);
+        }
+
+        /* INTERACTION PROMPT */
+        #prompt {
+            position: absolute;
+            left: 50%;
+            top: 40%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 2px 4px black;
+            display: none;
+        }
+
+        /* CLASS SELECTOR */
+        #class-select {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0f0f13;
+            z-index: 100;
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .class-card {
+            width: 600px;
+            padding: 20px;
+            margin: 10px;
+            border: 1px solid #333;
+            cursor: pointer;
+        }
+        .class-card:hover { border-color: #c8aa6e; background: #151515; }
+    </style>
+</head>
+<body>
+
+    <!-- GAME CANVAS -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- UI LAYER -->
+    <div id="ui-layer">
+        <div class="hud-top">
+            <div class="title">AETHER NOIR: PROTOCOL</div>
+            <div class="stats" id="player-stats">CLASS: UNKNOWN | TIME: 24:00</div>
+        </div>
+
+        <div id="prompt">[E] INTERACT</div>
+
+        <div id="dialogue-box">
+            <div class="speaker-name" id="d-name">Unknown</div>
+            <div class="dialogue-text" id="d-text">...</div>
+            <div class="options" id="d-options"></div>
+        </div>
+    </div>
+
+    <!-- START SCREEN -->
+    <div id="class-select">
+        <h1 class="title" style="font-size: 40px; margin-bottom: 40px;">Select Archetype</h1>
+        <div class="class-card" onclick="startGame('enforcer')">
+            <h2 style="color: #ef4444">THE ENFORCER</h2>
+            <p style="color:#888">High intimidation. Can smash locked doors. Civilians fear you.</p>
+        </div>
+        <div class="class-card" onclick="startGame('aristocrat')">
+            <h2 style="color: #eab308">THE ARISTOCRAT</h2>
+            <p style="color:#888">High charisma. Access restricted areas. Can bribe officials.</p>
+        </div>
+    </div>
+
+<script>
+    // --- CONFIGURATION ---
+    const CANVAS = document.getElementById('gameCanvas');
+    const CTX = CANVAS.getContext('2d');
+    const TILE_SIZE = 40;
+    
+    let SCREEN_WIDTH = window.innerWidth;
+    let SCREEN_HEIGHT = window.innerHeight;
+    
+    CANVAS.width = SCREEN_WIDTH;
+    CANVAS.height = SCREEN_HEIGHT;
+
+    // --- STATE MANAGEMENT ---
+    let gameActive = false;
+    let player = { x: 5, y: 5, class: null, color: '#c8aa6e' };
+    let camera = { x: 0, y: 0 };
+    let map = [];
+    let entities = []; // NPCs and Clues
+    let cluesFound = 0;
+
+    // --- GENERATION ENGINE (The "Truth") ---
+    const MAP_WIDTH = 40;
+    const MAP_HEIGHT = 30;
+
+    // 0=Floor, 1=Wall, 2=Door(Locked), 3=Decor
+    function generateCity() {
+        let newMap = [];
+        for(let y=0; y<MAP_HEIGHT; y++) {
+            let row = [];
+            for(let x=0; x<MAP_WIDTH; x++) {
+                // Simple Room Generation Logic
+                let isWall = Math.random() < 0.1 || x===0 || x===MAP_WIDTH-1 || y===0 || y===MAP_HEIGHT-1;
+                row.push(isWall ? 1 : 0);
+            }
+            newMap.push(row);
+        }
+        // Create a building in the center
+        for(let y=10; y<20; y++) {
+            for(let x=15; x<25; x++) {
+                if (y===10 || y===19 || x===15 || x===24) newMap[y][x] = 1; // Walls
+                else newMap[y][x] = 0; // Floor
+            }
+        }
+        newMap[19][20] = 2; // Door
+        return newMap;
+    }
+
+    function spawnEntities() {
+        // Logic: Create 1 Victim, 2 Suspects, 3 Clues
+        return [
+            { id: 'victim', x: 20, y: 15, type: 'body', name: 'Body of Baron Vess', 
+              dialogue: "He's cold. Looks like poison. There's a strange residue on his lips." },
+            
+            { id: 'suspect1', x: 22, y: 12, type: 'npc', name: 'Lady Elara', color: '#a78bfa',
+              dialogue: "I didn't do it! I was in the parlor all night.",
+              secret: "She is lying. She has a vial of poison in her pocket (Requires Search)." },
+
+            { id: 'clue1', x: 16, y: 18, type: 'clue', name: 'Shattered Vial', color: '#34d399',
+              dialogue: "A broken glass vial. It smells of almonds (Cyanide)." },
+              
+            { id: 'guard', x: 20, y: 21, type: 'npc', name: 'City Guard', color: '#60a5fa',
+              dialogue: "Move along. Nothing to see here unless you have a badge." }
+        ];
+    }
+
+    // --- GAME LOOP & LOGIC ---
+    
+    function startGame(selectedClass) {
+        player.class = selectedClass;
+        document.getElementById('class-select').style.display = 'none';
+        document.getElementById('player-stats').innerText = `CLASS: ${selectedClass.toUpperCase()} | CLUES: 0/3`;
+        
+        map = generateCity();
+        entities = spawnEntities();
+        gameActive = true;
+        loop();
+    }
+
+    // Input Handling
+    const keys = {};
+    window.addEventListener('keydown', (e) => { keys[e.key] = true; if(e.key === 'e') interact(); });
+    window.addEventListener('keyup', (e) => keys[e.key] = false);
+
+    function movePlayer() {
+        if (!gameActive) return;
+        let speed = 0.15;
+        let newX = player.x;
+        let newY = player.y;
+
+        if (keys['w'] || keys['ArrowUp']) newY -= speed;
+        if (keys['s'] || keys['ArrowDown']) newY += speed;
+        if (keys['a'] || keys['ArrowLeft']) newX -= speed;
+        if (keys['d'] || keys['ArrowRight']) newX += speed;
+
+        // Collision Check
+        if (map[Math.floor(newY)][Math.floor(newX)] !== 1 && 
+            map[Math.floor(newY)][Math.floor(newX)] !== 2) {
+            player.x = newX;
+            player.y = newY;
+        } else if (map[Math.floor(newY)][Math.floor(newX)] === 2) {
+             // Door Logic
+             // If Enforcer, break door
+             if(player.class === 'enforcer') {
+                 map[Math.floor(newY)][Math.floor(newX)] = 0; // Break door
+                 showDialogue("SYSTEM", "You smashed the lock with brute force.");
+             } else {
+                 showDialogue("SYSTEM", "Locked. You need a key or more strength.");
+             }
+        }
+    }
+
+    function interact() {
+        // Find nearest entity
+        let nearest = null;
+        let dist = 999;
+        
+        entities.forEach(ent => {
+            let d = Math.hypot(ent.x - player.x, ent.y - player.y);
+            if (d < 1.5 && d < dist) {
+                dist = d;
+                nearest = ent;
+            }
+        });
+
+        if (nearest) {
+            showDialogue(nearest.name, nearest.dialogue, nearest);
+        }
+    }
+
+    // --- RENDERER ---
+
+    function draw() {
+        // Clear Screen
+        CTX.fillStyle = '#050505';
+        CTX.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+        // Calculate Camera (Follow Player)
+        let camX = player.x * TILE_SIZE - SCREEN_WIDTH / 2;
+        let camY = player.y * TILE_SIZE - SCREEN_HEIGHT / 2;
+
+        // Draw Map
+        for(let y=0; y<MAP_HEIGHT; y++) {
+            for(let x=0; x<MAP_WIDTH; x++) {
+                let tile = map[y][x];
+                let screenX = x * TILE_SIZE - camX;
+                let screenY = y * TILE_SIZE - camY;
+
+                // Optimization: Don't draw off-screen
+                if (screenX < -TILE_SIZE || screenX > SCREEN_WIDTH || screenY < -TILE_SIZE || screenY > SCREEN_HEIGHT) continue;
+
+                if (tile === 1) { // Wall
+                    CTX.fillStyle = '#1f2937'; 
+                    CTX.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+                    // "Neon" Border for walls
+                    CTX.strokeStyle = '#374151';
+                    CTX.strokeRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+                } else if (tile === 2) { // Door
+                    CTX.fillStyle = '#b45309';
+                    CTX.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+                    CTX.fillStyle = 'white';
+                    CTX.font = '12px Arial';
+                    CTX.fillText("LOCK", screenX+5, screenY+25);
+                } else { // Floor
+                    CTX.fillStyle = '#111'; 
+                    CTX.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
+                }
+            }
+        }
+
+        // Draw Entities
+        entities.forEach(ent => {
+            let screenX = ent.x * TILE_SIZE - camX;
+            let screenY = ent.y * TILE_SIZE - camY;
+            
+            // Glow Effect
+            CTX.shadowBlur = 15;
+            CTX.shadowColor = ent.color || 'white';
+            CTX.fillStyle = ent.color || 'white';
+            
+            // Shape based on type
+            if (ent.type === 'body') CTX.fillRect(screenX, screenY + 10, TILE_SIZE, 10);
+            else CTX.beginPath(), CTX.arc(screenX + TILE_SIZE/2, screenY + TILE_SIZE/2, 10, 0, Math.PI*2), CTX.fill();
+            
+            CTX.shadowBlur = 0;
+        });
+
+        // Draw Player
+        let pScreenX = player.x * TILE_SIZE - camX;
+        let pScreenY = player.y * TILE_SIZE - camY;
+        
+        CTX.shadowBlur = 20;
+        CTX.shadowColor = '#c8aa6e';
+        CTX.fillStyle = '#c8aa6e';
+        CTX.beginPath();
+        CTX.arc(pScreenX + TILE_SIZE/2, pScreenY + TILE_SIZE/2, 12, 0, Math.PI*2);
+        CTX.fill();
+        CTX.shadowBlur = 0;
+
+        // Check for Interaction Prompt
+        let nearEntity = entities.some(e => Math.hypot(e.x - player.x, e.y - player.y) < 1.5);
+        document.getElementById('prompt').style.display = nearEntity ? 'block' : 'none';
+    }
+
+    function loop() {
+        movePlayer();
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    // --- UI LOGIC ---
+    
+    function showDialogue(name, text, entity = null) {
+        const box = document.getElementById('dialogue-box');
+        const dName = document.getElementById('d-name');
+        const dText = document.getElementById('d-text');
+        const dOpts = document.getElementById('d-options');
+
+        box.style.display = 'block';
+        dName.innerText = name;
+        dText.innerText = text;
+        dOpts.innerHTML = '';
+
+        // Add "Close" Button
+        let btnClose = document.createElement('button');
+        btnClose.className = 'btn';
+        btnClose.innerText = 'Leave';
+        btnClose.onclick = () => { box.style.display = 'none'; };
+        dOpts.appendChild(btnClose);
+
+        // Add Class-Specific Actions
+        if (entity && player.class === 'enforcer' && entity.type === 'npc') {
+            let btnThreat = document.createElement('button');
+            btnThreat.className = 'btn';
+            btnThreat.innerText = '[ENFORCER] Threaten';
+            btnThreat.style.borderColor = 'red';
+            btnThreat.style.color = 'red';
+            btnThreat.onclick = () => {
+                dText.innerText = "Okay! Okay! I saw the Butler throw something in the trash!";
+                // Logic: Mark clue as revealed
+            };
+            dOpts.appendChild(btnThreat);
+        }
+    }
+
+    window.addEventListener('resize', () => {
+        SCREEN_WIDTH = window.innerWidth;
+        SCREEN_HEIGHT = window.innerHeight;
+        CANVAS.width = SCREEN_WIDTH;
+        CANVAS.height = SCREEN_HEIGHT;
+    });
+
+</script>
+</body>
+</html>

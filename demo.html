@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project: AETHER NOIR</title>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Cinzel (Arcane title font) and Lato -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ARCANE AESTHETIC OVERRIDES */
+        body {
+            background-color: #1a1c29; /* Dark Navy/Violet */
+            color: #d1d5db;
+            font-family: 'Lato', sans-serif;
+            overflow: hidden; /* No scroll */
+        }
+        
+        .font-arcane {
+            font-family: 'Cinzel', serif;
+        }
+
+        /* Custom Scrollbar for internal panels */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #12141d; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c8aa6e; /* Gold */
+            border-radius: 3px;
+        }
+
+        /* The "Watercolor" Paper Texture Effect */
+        .paper-texture {
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.7);
+        }
+
+        /* Gold Border Gradient */
+        .border-gold {
+            border: 2px solid transparent;
+            background: linear-gradient(#1a1c29, #1a1c29) padding-box,
+                        linear-gradient(to bottom, #c8aa6e, #7a6038) border-box;
+        }
+
+        /* Neon Teal Glow */
+        .glow-teal {
+            text-shadow: 0 0 5px #0AC8B9, 0 0 10px #0AC8B9;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #1e293b, #0f172a);
+            border: 1px solid #c8aa6e;
+            color: #c8aa6e;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background: #c8aa6e;
+            color: #1a1c29;
+            box-shadow: 0 0 15px rgba(200, 170, 110, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script type="text/babel">
+
+    // --- GAME DATA & ASSETS ---
+    
+    const CLASSES = {
+        enforcer: {
+            id: 'enforcer',
+            name: 'The Enforcer',
+            desc: 'Brute force and intimidation. You break locks and faces.',
+            bonus: 'Intimidation',
+            color: 'text-red-500'
+        },
+        chemist: {
+            id: 'chemist',
+            name: 'The Chem-Baron',
+            desc: 'Forensics and poisons. You see what is hidden in the fluids.',
+            bonus: 'Science',
+            color: 'text-green-400'
+        },
+        aristocrat: {
+            id: 'aristocrat',
+            name: 'The Aristocrat',
+            desc: 'Wealth and influence. You buy answers others cannot get.',
+            bonus: 'Charm',
+            color: 'text-yellow-400'
+        },
+        drifter: {
+            id: 'drifter',
+            name: 'The Drifter',
+            desc: 'Instinct and insanity. You hear the whispers of the city.',
+            bonus: 'Psychic',
+            color: 'text-blue-400'
+        }
+    };
+
+    const LOCATIONS = [
+        { id: 'crime_scene', name: 'The Clocktower Study', type: 'Indoor', desc: 'A lavish room smelling of mahogany and copper. The victim lies slumped over a desk.' },
+        { id: 'slums', name: 'The Drip (Slums)', type: 'Outdoor', desc: 'Neon lights reflect off puddles of toxic sludge. Eyes watch you from the shadows.' },
+        { id: 'lab', name: 'Hex-Tech Foundry', type: 'Industrial', desc: 'The hum of unstable magic fills the air. Sparks fly from automated welding arms.' },
+        { id: 'bar', name: 'The Last Drop', type: 'Social', desc: 'Music thumps through the floor. Shady deals happen in every booth.' }
+    ];
+
+    // --- PROCEDURAL GENERATION ENGINE ---
+
+    function generateMystery() {
+        const victims = ['Councilor Talis', 'Baroness Vess', 'Chemist Singe'];
+        const methods = ['Hex-Crystal Overdose', 'Chem-Blade Wound', 'Psychic Burn'];
+        
+        const victim = victims[Math.floor(Math.random() * victims.length)];
+        const method = methods[Math.floor(Math.random() * methods.length)];
+        
+        // Generate Suspects with distinct personalities
+        const suspects = [
+            { id: 1, name: 'Vargo', role: 'Thug', motive: 'Debt', alibi: 'At the bar', guilty: false, nervousness: 20 },
+            { id: 2, name: 'Elara', role: 'Assistant', motive: 'Jealousy', alibi: 'Working late', guilty: false, nervousness: 60 },
+            { id: 3, name: 'Ren', role: 'Rival', motive: 'Business', alibi: 'Out of town', guilty: false, nervousness: 40 }
+        ];
+
+        // Pick a random killer
+        const killerIndex = Math.floor(Math.random() * suspects.length);
+        suspects[killerIndex].guilty = true;
+        suspects[killerIndex].alibi = 'Lied about being home'; // Simplified logic for now
+
+        return {
+            title: `The Case of the ${victim}`,
+            victim: victim,
+            method: method,
+            suspects: suspects,
+            cluesFound: [],
+            timeRemaining: 24 // Hours
+        };
+    }
+
+    // --- COMPONENTS ---
+
+    const App = () => {
+        const [view, setView] = React.useState('start'); // start, game
+        const [playerClass, setPlayerClass] = React.useState(null);
+        const [gameState, setGameState] = React.useState(null);
+        const [log, setLog] = React.useState(['System initialized...', 'Awaiting detective assignment.']);
+
+        const addToLog = (msg) => {
+            setLog(prev => [msg, ...prev]);
+        };
+
+        const startGame = (selectedClass) => {
+            setPlayerClass(selectedClass);
+            setGameState(generateMystery());
+            setView('game');
+            addToLog(`Identity confirmed: ${selectedClass.name}.`);
+            addToLog(`New Case Assigned. Time is ticking.`);
+        };
+
+        return (
+            <div className="w-screen h-screen flex flex-col">
+                {/* HEADER */}
+                <header className="h-16 border-b border-gray-800 bg-black/40 flex items-center justify-between px-6 relative z-10">
+                    <h1 className="font-arcane text-2xl text-[#c8aa6e] tracking-widest glow-teal">AETHER NOIR</h1>
+                    <div className="text-xs text-gray-500 uppercase tracking-widest">Build v0.1 // {playerClass ? playerClass.name : 'UNAUTHORIZED'}</div>
+                </header>
+
+                {/* MAIN CONTENT AREA */}
+                <main className="flex-1 relative paper-texture flex overflow-hidden">
+                    
+                    {/* START SCREEN */}
+                    {view === 'start' && (
+                        <div className="w-full h-full flex flex-col items-center justify-center z-20">
+                            <h2 className="font-arcane text-4xl mb-8 text-white">Select Your Archetype</h2>
+                            <div className="grid grid-cols-2 gap-6 max-w-4xl">
+                                {Object.values(CLASSES).map(cls => (
+                                    <div 
+                                        key={cls.id}
+                                        onClick={() => startGame(cls)}
+                                        className="p-6 border-gold bg-black/60 hover:bg-black/80 cursor-pointer transition-all hover:scale-105 group"
+                                    >
+                                        <h3 className={`font-arcane text-xl mb-2 ${cls.color}`}>{cls.name}</h3>
+                                        <p className="text-gray-400 text-sm mb-4">{cls.desc}</p>
+                                        <div className="text-xs uppercase tracking-widest text-gray-500 group-hover:text-[#c8aa6e]">
+                                            Specialty: {cls.bonus}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* GAME DASHBOARD */}
+                    {view === 'game' && (
+                        <div className="w-full h-full grid grid-cols-12 gap-4 p-4">
+                            
+                            {/* LEFT: CASE FILES (Suspects & Clues) */}
+                            <div className="col-span-3 border-gold bg-black/40 p-4 flex flex-col">
+                                <h3 className="font-arcane text-[#c8aa6e] mb-4 border-b border-gray-700 pb-2">Case Files</h3>
+                                
+                                <div className="flex-1 overflow-y-auto">
+                                    <div className="mb-4">
+                                        <div className="text-xs text-gray-500 uppercase">Victim</div>
+                                        <div className="text-white">{gameState.victim}</div>
+                                        <div className="text-xs text-red-400">{gameState.method}</div>
+                                    </div>
+
+                                    <div className="text-xs text-gray-500 uppercase mb-2">Suspects</div>
+                                    {gameState.suspects.map(sus => (
+                                        <div key={sus.id} className="mb-3 p-2 bg-black/30 border border-gray-800 hover:border-gray-600 cursor-pointer">
+                                            <div className="flex justify-between">
+                                                <span className="text-[#c8aa6e] font-bold">{sus.name}</span>
+                                                <span className="text-xs text-gray-500">{sus.role}</span>
+                                            </div>
+                                            <div className="text-xs text-gray-400 mt-1">Motive: {sus.motive}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* CENTER: VISUAL SCENE & DIALOGUE */}
+                            <div className="col-span-6 flex flex-col gap-4">
+                                {/* Visual Window */}
+                                <div className="flex-1 border-gold bg-black/60 relative flex items-center justify-center overflow-hidden group">
+                                    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?q=80&w=2574&auto=format&fit=crop')] bg-cover bg-center opacity-40 grayscale contrast-125 mix-blend-multiply"></div>
+                                    <div className="relative z-10 text-center p-8">
+                                        <h2 className="font-arcane text-3xl text-white mb-2">{gameState.title}</h2>
+                                        <p className="text-gray-300 italic">"The city breathes, and tonight it exhales blood."</p>
+                                    </div>
+                                    
+                                    {/* Class Ability Overlay */}
+                                    <div className="absolute bottom-4 right-4 z-20">
+                                        <button 
+                                            className="bg-teal-900/80 text-teal-200 px-4 py-2 text-xs border border-teal-500 uppercase tracking-widest hover:bg-teal-800 transition-colors"
+                                            onClick={() => addToLog(`Using ${playerClass.bonus}: Scanning area... Nothing suspicious found yet.`)}
+                                        >
+                                            Use {playerClass.bonus}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Dialogue / Text Area */}
+                                <div className="h-48 border-gold bg-black/80 p-4 overflow-y-auto font-mono text-sm text-gray-300">
+                                    {log.map((entry, i) => (
+                                        <div key={i} className="mb-1 border-l-2 border-[#c8aa6e] pl-2">
+                                            <span className="text-gray-500">[{24 - Math.floor(i/2)}:00]</span> {entry}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* RIGHT: MAP & STATS */}
+                            <div className="col-span-3 flex flex-col gap-4">
+                                {/* Player Stats */}
+                                <div className="h-32 border-gold bg-black/40 p-4">
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="w-12 h-12 bg-gray-800 rounded-full border border-[#c8aa6e] flex items-center justify-center text-xl">
+                                            {playerClass.name[0]}
+                                        </div>
+                                        <div>
+                                            <div className="font-arcane text-[#c8aa6e]">{playerClass.name}</div>
+                                            <div className="text-xs text-gray-500">Status: Active</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between text-xs text-gray-400">
+                                        <span>Time Left: {gameState.timeRemaining}h</span>
+                                        <span>Stress: 0%</span>
+                                    </div>
+                                    <div className="w-full bg-gray-800 h-1 mt-1">
+                                        <div className="bg-teal-500 h-1 w-full"></div>
+                                    </div>
+                                </div>
+
+                                {/* Map */}
+                                <div className="flex-1 border-gold bg-black/40 p-4 flex flex-col">
+                                    <h3 className="font-arcane text-[#c8aa6e] mb-4 border-b border-gray-700 pb-2">City Map</h3>
+                                    <div className="flex-1 grid grid-cols-1 gap-2">
+                                        {LOCATIONS.map(loc => (
+                                            <button 
+                                                key={loc.id}
+                                                onClick={() => addToLog(`Traveling to ${loc.name}... (-1 hour)`)}
+                                                className="p-3 text-left bg-gray-900/50 border border-gray-800 hover:border-[#c8aa6e] hover:bg-gray-800 transition-all group"
+                                            >
+                                                <div className="text-sm text-gray-300 group-hover:text-white">{loc.name}</div>
+                                                <div className="text-xs text-gray-600">{loc.type}</div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    )}
+                </main>
+            </div>
+        );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+
+</script>
+</body>
+</html>

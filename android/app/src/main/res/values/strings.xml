@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">LooksMaxApp</string>
+    <string name="accessibility_service_description">Mindful detects scroll patterns to help you stay aware of your screen time habits.</string>
 </resources>
