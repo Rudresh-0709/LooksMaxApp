@@ -1,41 +1,49 @@
-# LooksMax Welcome Screen Assets
+# Assets Directory
 
-## Logo Image Placement
+This folder contains all images and assets for the LooksMaxApp onboarding flow.
 
-To complete the Welcome screen, please place your logo/illustration image at:
+## Image Requirements
 
-```
-frontend/src/assets/images/welcome-logo.png
-```
+If you need to manually add images, place them in the appropriate subfolder below.
 
-### Image Specifications:
-- **Format**: PNG (with transparent background recommended)
-- **Size**: 400x400px minimum (for high-DPI displays)
-- **Content**: The glowing man profile with razor and dumbbell illustration shown in your reference
+### `/body-types/`
+Images of male torsos showing different body compositions:
+- `skinny.png` - Lean/underweight build
+- `skinny-fat.png` - Thin but with belly fat (24-30% body fat)
+- `average.png` - Normal weight, some muscle definition
+- `overweight.png` - Higher body fat percentage
 
-### Directory Structure:
-```
-LooksMaxApp/
-└── frontend/
-    └── src/
-        └── assets/
-            └── images/
-                └── welcome-logo.png  ← Place your image here
-```
+### `/hair-loss/`
+Images showing male hairline recession stages:
+- `none.png` - Full head of hair, no recession
+- `mild.png` - Slight temples recession (Norwood 2)
+- `moderate.png` - Noticeable recession (Norwood 3-4)
+- `severe.png` - Significant hair loss (Norwood 5+)
 
-The WelcomeScreen component is already configured to display this image once you add it.
+### `/beard/`
+Images showing beard growth patterns:
+- `patchy.png` - Sparse, uneven growth
+- `moderate.png` - Decent coverage with some gaps
+- `full.png` - Dense, full beard
 
-## To Use the Image in Code:
+### `/goals/`
+Images representing fitness/looks goals:
+- `fat-loss.png` - Before/after or lean physique
+- `better-face.png` - Attractive male face or jawline
+- `muscle-gain.png` - Muscular/athletic build
+- `glow-up.png` - Overall transformation or groomed appearance
 
-Once you place the image, update `WelcomeScreen.js` to import and display it:
+### `/icons/`
+Utility icons (generated or sourced):
+- Various UI icons as needed
 
-```javascript
-// At the top of WelcomeScreen.js
-import welcomeLogo from '../assets/images/welcome-logo.png';
+## Image Specifications
 
-// Replace the logoPlaceholder View with:
-<Image source={welcomeLogo} style={{ width: 200, height: 200 }} resizeMode="contain" />
-```
+- **Format**: PNG with transparency OR JPG
+- **Size**: 300x400px recommended for cards
+- **Style**: Clean, professional photos on neutral background
+- **Aspect Ratio**: ~3:4 for body photos, 1:1 for icons
 
-## Current State:
-The Welcome screen currently shows a placeholder with blueprint styling that matches your theme. Once you add the logo image, it will be displayed with the glowing animation effect.
+## Placeholder Behavior
+
+The app will show a gradient placeholder if an image is missing, so you can add images progressively without breaking the UI.

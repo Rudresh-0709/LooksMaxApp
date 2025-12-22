@@ -1,23 +1,31 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
-import BlueprintButton from '../components/BlueprintButton';
+import LinearGradient from 'react-native-linear-gradient';
+import { BlueprintButton } from '../components/BlueprintButton';
 import { theme } from '../theme/theme';
 
 const { width, height } = Dimensions.get('window');
 
-const WelcomeScreen = ({ navigation }) => {
+export default function WelcomeScreen({ navigation }) {
     const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(0.8)).current;
     const glowAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        // Fade in animation
-        Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 1200,
-            useNativeDriver: true,
-        }).start();
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 800,
+                useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+                toValue: 1,
+                friction: 8,
+                tension: 40,
+                useNativeDriver: true,
+            }),
+        ]).start();
 
-        // Glow pulse animation
         Animated.loop(
             Animated.sequence([
                 Animated.timing(glowAnim, {
@@ -36,158 +44,133 @@ const WelcomeScreen = ({ navigation }) => {
 
     const glowOpacity = glowAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [0.3, 0.8],
+        outputRange: [0.4, 0.8],
     });
 
     return (
         <View style={styles.container}>
-            {/* Grid background */}
-            <View style={styles.gridOverlay} />
+            {/* Background gradient */}
+            <LinearGradient
+                colors={['#1a0a2e', '#0A0A0F', '#0a1628']}
+                style={styles.backgroundGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            />
 
-            <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-                {/* Title */}
-                <View style={styles.titleContainer}>
-                    <Text style={styles.welcomeText}>WELCOME TO</Text>
-                    <Text style={styles.appName}>LOOKSMAX</Text>
-                </View>
-
-                {/* Subtitle */}
-                <Text style={styles.subtitle}>
-                    Your personal system for{'\n'}fitness, grooming & style
-                </Text>
-
-                {/* Central glowing logo area */}
+            <Animated.View
+                style={[
+                    styles.content,
+                    {
+                        opacity: fadeAnim,
+                        transform: [{ scale: scaleAnim }]
+                    }
+                ]}
+            >
+                {/* Logo */}
                 <View style={styles.logoContainer}>
                     <Animated.View style={[styles.glowCircle, { opacity: glowOpacity }]} />
-
-                    {/* Placeholder for logo image - user should place image at: 
-              frontend/src/assets/images/welcome-logo.png */}
-                    <View style={styles.logoPlaceholder}>
-                        <Text style={styles.logoText}>LOGO</Text>
-                        <Text style={styles.logoHint}>Place image at:{'\n'}assets/images/welcome-logo.png</Text>
-                    </View>
+                    <LinearGradient
+                        colors={theme.gradients.primary}
+                        style={styles.logoInner}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                    >
+                        <Text style={styles.logoText}>LM</Text>
+                    </LinearGradient>
                 </View>
 
-                {/* Get Started Button */}
+                {/* Title */}
+                <Text style={styles.appName}>LOOKSMAX</Text>
+                <Text style={styles.tagline}>
+                    Your personal transformation{'\n'}journey starts here
+                </Text>
+
+                {/* Features */}
+                <View style={styles.features}>
+                    <Text style={styles.featureItem}>✨ AI Face Analysis</Text>
+                    <Text style={styles.featureItem}>💪 Personalized Plans</Text>
+                    <Text style={styles.featureItem}>📈 Track Progress</Text>
+                </View>
+
+                {/* Get Started */}
                 <View style={styles.buttonContainer}>
                     <BlueprintButton
                         title="GET STARTED"
-                        onPress={() => navigation.navigate('BasicDetails')}
+                        onPress={() => navigation.navigate('Name')}
                     />
                 </View>
-
-                {/* Decorative corner element */}
-                <View style={styles.decorativeCorner} />
             </Animated.View>
         </View>
     );
-};
+}
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,
     },
-    gridOverlay: {
-        position: 'absolute',
-        width: '100%',
-        height: '100%',
-        opacity: 0.1,
-        borderWidth: 1,
-        borderColor: theme.colors.primary,
+    backgroundGradient: {
+        ...StyleSheet.absoluteFillObject,
     },
     content: {
         flex: 1,
         alignItems: 'center',
-        justifyContent: 'space-evenly',
-        paddingHorizontal: theme.spacing.xl,
-        paddingVertical: theme.spacing.xxl,
+        justifyContent: 'center',
+        paddingHorizontal: 32,
     },
-    titleContainer: {
+    logoContainer: {
+        width: 140,
+        height: 140,
         alignItems: 'center',
-        marginTop: theme.spacing.xxl,
+        justifyContent: 'center',
+        marginBottom: 32,
     },
-    welcomeText: {
-        fontSize: 24,
-        color: theme.colors.textSecondary,
-        fontFamily: theme.typography.fontFamily,
-        letterSpacing: 4,
-        marginBottom: theme.spacing.sm,
+    glowCircle: {
+        position: 'absolute',
+        width: 160,
+        height: 160,
+        borderRadius: 80,
+        backgroundColor: theme.colors.primary,
+        ...theme.shadows.glow,
+    },
+    logoInner: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    logoText: {
+        fontSize: 40,
+        fontWeight: '800',
+        color: '#FFFFFF',
+        letterSpacing: 2,
     },
     appName: {
         fontSize: 40,
-        color: theme.colors.primary,
-        fontFamily: theme.typography.fontFamily,
+        fontWeight: '800',
+        color: theme.colors.text,
         letterSpacing: 8,
-        fontWeight: '300',
+        marginBottom: 16,
     },
-    subtitle: {
+    tagline: {
         fontSize: 16,
         color: theme.colors.textSecondary,
         textAlign: 'center',
         lineHeight: 24,
-        letterSpacing: 1,
-        opacity: 0.8,
+        marginBottom: 48,
     },
-    logoContainer: {
-        width: 280,
-        height: 280,
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
+    features: {
+        marginBottom: 48,
     },
-    glowCircle: {
-        position: 'absolute',
-        width: 280,
-        height: 280,
-        borderRadius: 140,
-        backgroundColor: theme.colors.primary,
-        shadowColor: theme.colors.primary,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 40,
-        elevation: 20,
-    },
-    logoPlaceholder: {
-        width: 200,
-        height: 200,
-        borderRadius: 100,
-        borderWidth: 2,
-        borderColor: theme.colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(0, 240, 255, 0.05)',
-    },
-    logoText: {
-        fontSize: 24,
-        color: theme.colors.primary,
-        fontFamily: theme.typography.fontFamily,
-        letterSpacing: 4,
-        marginBottom: theme.spacing.sm,
-    },
-    logoHint: {
-        fontSize: 10,
+    featureItem: {
+        fontSize: 16,
         color: theme.colors.textSecondary,
+        marginBottom: 12,
         textAlign: 'center',
-        opacity: 0.5,
-        marginTop: theme.spacing.sm,
     },
     buttonContainer: {
         width: '100%',
-        maxWidth: 400,
-        marginBottom: theme.spacing.xl,
-    },
-    decorativeCorner: {
-        position: 'absolute',
-        bottom: 20,
-        right: 20,
-        width: 40,
-        height: 40,
-        borderRightWidth: 2,
-        borderBottomWidth: 2,
-        borderColor: theme.colors.primary,
-        opacity: 0.3,
+        maxWidth: 320,
     },
 });
-
-export default WelcomeScreen;

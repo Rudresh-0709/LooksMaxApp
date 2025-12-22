@@ -1,108 +1,120 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+    View,
+    Text,
+    StyleSheet,
+    SafeAreaView,
+    ScrollView,
+} from 'react-native';
+import { Check } from 'lucide-react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { theme } from '../theme/theme';
 import { BlueprintButton } from '../components/BlueprintButton';
+import { getUserData, calculateAge } from '../services/userDataService';
 
 const DataRow = ({ label, value }) => (
     <View style={styles.row}>
-        <Text style={styles.label}>{label}</Text>
-        <View style={styles.dots} />
-        <Text style={styles.value}>{value}</Text>
+        <Text style={styles.rowLabel}>{label}</Text>
+        <Text style={styles.rowValue}>{value || '—'}</Text>
+    </View>
+);
+
+const Section = ({ title, children }) => (
+    <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {children}
     </View>
 );
 
 export default function ReviewScreen({ navigation }) {
-    const [data, setData] = useState({
-        name: '',
-        age: '',
-        country: '',
-        height: '',
-        weight: '',
-        bodyType: '',
-    });
+    const [data, setData] = useState({});
 
     useEffect(() => {
         loadData();
     }, []);
 
     const loadData = async () => {
-        try {
-            const name = await AsyncStorage.getItem('user_name');
-            const age = await AsyncStorage.getItem('user_age');
-            const country = await AsyncStorage.getItem('user_country');
-            const height = await AsyncStorage.getItem('user_height');
-            const weight = await AsyncStorage.getItem('user_weight');
-            const bodyType = await AsyncStorage.getItem('user_body_type');
-
-            setData({ name, age, country, height, weight, bodyType });
-        } catch (e) {
-            console.error('Failed to load data', e);
-        }
+        const userData = await getUserData();
+        setData(userData);
     };
 
-    const handleFinish = async () => {
-        try {
-            await AsyncStorage.setItem('hasOnboarded_v3', 'true');
-            // Reset navigation stack to Home
-            navigation.reset({
-                index: 0,
-                routes: [{ name: 'Home' }],
-            });
-        } catch (e) {
-            console.error('Failed to save onboarding status', e);
-        }
+    const handleFinish = () => {
+        navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+        });
+    };
+
+    const fmt = (val) => {
+        if (val === null || val === undefined) return '—';
+        if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+        return String(val).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     };
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.content}>
-                <View style={styles.header}>
-                    <Text style={styles.stepIndicator}>STEP 03 // VERIFICATION</Text>
-                    <Text style={styles.title}>FINAL DIAGNOSTIC</Text>
-                    <View style={styles.separator} />
+            <LinearGradient
+                colors={['rgba(102, 126, 234, 0.1)', 'transparent']}
+                style={styles.gradientBg}
+            />
+
+            <ScrollView
+                style={styles.content}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Success */}
+                <View style={styles.successContainer}>
+                    <LinearGradient
+                        colors={theme.gradients.primary}
+                        style={styles.successIcon}
+                    >
+                        <Check size={32} color="#FFF" />
+                    </LinearGradient>
+                    <Text style={styles.successTitle}>You're all set! 🎉</Text>
+                    <Text style={styles.successSubtitle}>
+                        Here's your profile summary
+                    </Text>
                 </View>
 
-                <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <Text style={styles.cardTitle}>SUBJECT PROFILE</Text>
-                    </View>
-                    <View style={styles.cardBody}>
-                        <DataRow label="NAME" value={data.name} />
-                        <DataRow label="AGE" value={data.age} />
-                        <DataRow label="COUNTRY" value={data.country || 'N/A'} />
-                    </View>
-                    <View style={styles.cornerTL} />
-                    <View style={styles.cornerTR} />
-                    <View style={styles.cornerBL} />
-                    <View style={styles.cornerBR} />
-                </View>
+                <Section title="YOU">
+                    <DataRow label="Name" value={data.name} />
+                    <DataRow label="Age" value={data.birthYear ? `${calculateAge(data.birthYear)}` : null} />
+                    <DataRow label="Gender" value={fmt(data.gender)} />
+                </Section>
 
-                <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <Text style={styles.cardTitle}>BIOMETRIC DATA</Text>
-                    </View>
-                    <View style={styles.cardBody}>
-                        <DataRow label="HEIGHT" value={`${data.height} CM`} />
-                        <DataRow label="WEIGHT" value={`${data.weight} KG`} />
-                        <DataRow label="BUILD" value={data.bodyType?.toUpperCase()} />
-                    </View>
-                    <View style={styles.cornerTL} />
-                    <View style={styles.cornerTR} />
-                    <View style={styles.cornerBL} />
-                    <View style={styles.cornerBR} />
-                </View>
+                <Section title="BODY">
+                    <DataRow label="Height" value={data.height ? `${data.height} cm` : null} />
+                    <DataRow label="Weight" value={data.weight ? `${data.weight} kg` : null} />
+                    <DataRow label="Body Type" value={fmt(data.bodyType)} />
+                    <DataRow label="Fitness" value={fmt(data.fitnessLevel)} />
+                    <DataRow label="Gym" value={fmt(data.gymAccess)} />
+                </Section>
 
-                <View style={styles.footer}>
-                    <BlueprintButton title="INITIALIZE SYSTEM" onPress={handleFinish} />
-                    <BlueprintButton
-                        title="MODIFY DATA"
-                        variant="secondary"
-                        onPress={() => navigation.goBack()}
-                        style={{ marginTop: theme.spacing.s }}
-                    />
-                </View>
+                <Section title="APPEARANCE">
+                    <DataRow label="Hair" value={fmt(data.hairLoss)} />
+                    <DataRow label="Beard" value={fmt(data.beardGrowth)} />
+                    <DataRow label="Skin" value={fmt(data.skinType)} />
+                </Section>
+
+                <Section title="LIFESTYLE">
+                    <DataRow label="Sleep" value={data.sleepDuration} />
+                    <DataRow label="Water" value={data.waterIntake} />
+                    <DataRow label="Smoking" value={fmt(data.smoking)} />
+                </Section>
+
+                <Section title="GOAL">
+                    <DataRow label="Focus" value={fmt(data.primaryGoal)} />
+                    <DataRow label="Daily Time" value={data.dailyTime ? `${data.dailyTime} min` : null} />
+                </Section>
             </ScrollView>
+
+            <View style={styles.footer}>
+                <BlueprintButton
+                    title="GET MY PLAN"
+                    onPress={handleFinish}
+                />
+            </View>
         </SafeAreaView>
     );
 }
@@ -112,119 +124,77 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: theme.colors.background,
     },
+    gradientBg: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 300,
+    },
     content: {
-        padding: theme.spacing.l,
+        flex: 1,
     },
-    header: {
-        marginBottom: theme.spacing.xl,
+    scrollContent: {
+        padding: 24,
+        paddingBottom: 120,
     },
-    stepIndicator: {
-        color: theme.colors.primary,
-        fontSize: 12,
-        letterSpacing: 2,
-        marginBottom: theme.spacing.xs,
-        fontFamily: 'monospace',
+    successContainer: {
+        alignItems: 'center',
+        marginBottom: 32,
+        paddingTop: 24,
     },
-    title: {
-        ...theme.typography.header,
+    successIcon: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+        ...theme.shadows.glow,
+    },
+    successTitle: {
+        fontSize: 28,
+        fontWeight: '700',
         color: theme.colors.text,
+        marginBottom: 8,
     },
-    separator: {
-        height: 1,
-        backgroundColor: theme.colors.primary,
-        marginTop: theme.spacing.s,
-        width: '30%',
+    successSubtitle: {
+        fontSize: 16,
+        color: theme.colors.textSecondary,
     },
-    card: {
-        marginBottom: theme.spacing.l,
+    section: {
+        backgroundColor: theme.colors.backgroundCard,
+        borderRadius: theme.borders.radius.lg,
+        padding: 16,
+        marginBottom: 16,
         borderWidth: 1,
-        borderColor: theme.colors.border,
-        backgroundColor: 'rgba(0, 240, 255, 0.02)',
-        padding: theme.spacing.m,
-        position: 'relative',
+        borderColor: theme.colors.borderMuted,
     },
-    cardHeader: {
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
-        paddingBottom: theme.spacing.s,
-        marginBottom: theme.spacing.m,
-    },
-    cardTitle: {
+    sectionTitle: {
+        fontSize: 12,
+        fontWeight: '700',
         color: theme.colors.primary,
-        fontSize: 14,
-        letterSpacing: 2,
-        fontWeight: 'bold',
-    },
-    cardBody: {
-        gap: theme.spacing.s,
+        letterSpacing: 1.5,
+        marginBottom: 12,
     },
     row: {
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
-    },
-    label: {
-        color: theme.colors.textDim,
-        fontSize: 14,
-        letterSpacing: 1,
-    },
-    dots: {
-        flex: 1,
-        height: 1,
+        paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
-        borderStyle: 'dotted', // React Native doesn't support dotted border perfectly on View, but we can try or use dashes
-        marginHorizontal: theme.spacing.s,
-        opacity: 0.3,
+        borderBottomColor: theme.colors.borderMuted,
     },
-    value: {
+    rowLabel: {
+        fontSize: 14,
+        color: theme.colors.textSecondary,
+    },
+    rowValue: {
+        fontSize: 14,
+        fontWeight: '600',
         color: theme.colors.text,
-        fontSize: 16,
-        fontWeight: 'bold',
-        fontFamily: 'monospace',
-    },
-    // Corners
-    cornerTL: {
-        position: 'absolute',
-        top: -1,
-        left: -1,
-        width: 10,
-        height: 10,
-        borderTopWidth: 2,
-        borderLeftWidth: 2,
-        borderColor: theme.colors.primary,
-    },
-    cornerTR: {
-        position: 'absolute',
-        top: -1,
-        right: -1,
-        width: 10,
-        height: 10,
-        borderTopWidth: 2,
-        borderRightWidth: 2,
-        borderColor: theme.colors.primary,
-    },
-    cornerBL: {
-        position: 'absolute',
-        bottom: -1,
-        left: -1,
-        width: 10,
-        height: 10,
-        borderBottomWidth: 2,
-        borderLeftWidth: 2,
-        borderColor: theme.colors.primary,
-    },
-    cornerBR: {
-        position: 'absolute',
-        bottom: -1,
-        right: -1,
-        width: 10,
-        height: 10,
-        borderBottomWidth: 2,
-        borderRightWidth: 2,
-        borderColor: theme.colors.primary,
     },
     footer: {
-        marginTop: theme.spacing.m,
+        padding: 24,
+        paddingBottom: 32,
     },
 });
