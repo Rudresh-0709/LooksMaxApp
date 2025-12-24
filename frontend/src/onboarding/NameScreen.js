@@ -29,6 +29,13 @@ export default function NameScreen({ navigation }) {
             subtitle="Let's get to know you better"
             step={1}
             onBack={() => navigation.goBack()}
+            footer={
+                <BlueprintButton
+                    title="CONTINUE"
+                    onPress={handleNext}
+                    disabled={!name.trim()}
+                />
+            }
         >
             <View style={styles.inputContainer}>
                 <TextInput
@@ -40,14 +47,6 @@ export default function NameScreen({ navigation }) {
                     autoFocus
                     returnKeyType="next"
                     onSubmitEditing={handleNext}
-                />
-            </View>
-
-            <View style={styles.footer}>
-                <BlueprintButton
-                    title="CONTINUE"
-                    onPress={handleNext}
-                    disabled={!name.trim()}
                 />
             </View>
         </OnboardingLayout>
@@ -66,11 +65,5 @@ const styles = StyleSheet.create({
         borderBottomColor: theme.colors.primary,
         paddingVertical: 16,
         paddingHorizontal: 4,
-    },
-    footer: {
-        position: 'absolute',
-        bottom: 40,
-        left: 0,
-        right: 0,
     },
 });

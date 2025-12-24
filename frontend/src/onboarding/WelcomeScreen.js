@@ -1,105 +1,90 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, StatusBar, Dimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
-import { BlueprintButton } from '../components/BlueprintButton';
+import { Activity, ClipboardCheck, Trophy } from 'lucide-react-native';
 import { theme } from '../theme/theme';
 
 const { width, height } = Dimensions.get('window');
 
+const FeatureCard = ({ icon: Icon, title, desc }) => (
+    <View style={styles.featureCard}>
+        <View style={styles.iconContainer}>
+            <Icon size={20} color="#6366F1" />
+        </View>
+        <View style={styles.featureTextContainer}>
+            <Text style={styles.featureTitle}>{title}</Text>
+            <Text style={styles.featureDesc}>{desc}</Text>
+        </View>
+    </View>
+);
+
 export default function WelcomeScreen({ navigation }) {
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const scaleAnim = useRef(new Animated.Value(0.8)).current;
-    const glowAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 800,
-                useNativeDriver: true,
-            }),
-            Animated.spring(scaleAnim, {
-                toValue: 1,
-                friction: 8,
-                tension: 40,
-                useNativeDriver: true,
-            }),
-        ]).start();
-
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(glowAnim, {
-                    toValue: 1,
-                    duration: 2000,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(glowAnim, {
-                    toValue: 0,
-                    duration: 2000,
-                    useNativeDriver: true,
-                }),
-            ])
-        ).start();
-    }, []);
-
-    const glowOpacity = glowAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.4, 0.8],
-    });
-
     return (
         <View style={styles.container}>
-            {/* Background gradient */}
-            <LinearGradient
-                colors={['#1a0a2e', '#0A0A0F', '#0a1628']}
-                style={styles.backgroundGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-            />
+            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-            <Animated.View
-                style={[
-                    styles.content,
-                    {
-                        opacity: fadeAnim,
-                        transform: [{ scale: scaleAnim }]
-                    }
-                ]}
-            >
-                {/* Logo */}
-                <View style={styles.logoContainer}>
-                    <Animated.View style={[styles.glowCircle, { opacity: glowOpacity }]} />
+            {/* Top Image Section - slightly smaller to save space */}
+            <View style={styles.imageSection}>
+                <ImageBackground
+                    source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCwXFI8evcBqf76LAK0wbXmbr6mEj4oSj0JDxh2lh1EYrKVTFZWKjMr6bk9Nc1adlC-9H5tQFcHJPcDtGnxU_Xek44BrLupGFMIFPAiYpybp6oBDzJjxLY2MaNnG8P0JlRwAxFbIHQymRWo781dLtIUybfmQSmC2l334lschm7NwnPc3mLWdhchVj2IoxEFleEnvSmdr_SshbjiLNhKyYi5dLuUvwRlLVaiJO0JGXqkn4-r4MEvyQioeX36JUBuN0uagj7iRLXRKxo_' }}
+                    style={styles.backgroundImage}
+                    resizeMode="cover"
+                >
                     <LinearGradient
-                        colors={theme.gradients.primary}
-                        style={styles.logoInner}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                    >
-                        <Text style={styles.logoText}>LM</Text>
-                    </LinearGradient>
+                        colors={['transparent', 'rgba(2, 6, 23, 0.4)', '#020617']}
+                        style={styles.gradientOverlay}
+                    />
+                </ImageBackground>
+            </View>
+
+            {/* Content Section - Use flex to fill space without scrolling */}
+            <View style={styles.contentSection}>
+                <View style={styles.header}>
+                    <Text style={styles.title}>
+                        Fitness <Text style={styles.primaryText}>Reimagined</Text>
+                    </Text>
+                    <Text style={styles.subtitle}>
+                        Track workouts and reach your peak performance.
+                    </Text>
                 </View>
 
-                {/* Title */}
-                <Text style={styles.appName}>LOOKSMAX</Text>
-                <Text style={styles.tagline}>
-                    Your personal transformation{'\n'}journey starts here
-                </Text>
-
-                {/* Features */}
-                <View style={styles.features}>
-                    <Text style={styles.featureItem}>✨ AI Face Analysis</Text>
-                    <Text style={styles.featureItem}>💪 Personalized Plans</Text>
-                    <Text style={styles.featureItem}>📈 Track Progress</Text>
-                </View>
-
-                {/* Get Started */}
-                <View style={styles.buttonContainer}>
-                    <BlueprintButton
-                        title="GET STARTED"
-                        onPress={() => navigation.navigate('Name')}
+                {/* Features - Compact list */}
+                <View style={styles.featuresContainer}>
+                    <FeatureCard
+                        icon={Activity}
+                        title="Advanced Analytics"
+                        desc="Real-time performance tracking"
+                    />
+                    <FeatureCard
+                        icon={ClipboardCheck}
+                        title="Personalized Plans"
+                        desc="AI-crafted routines for you"
+                    />
+                    <FeatureCard
+                        icon={Trophy}
+                        title="Community Challenges"
+                        desc="Compete and stay motivated"
                     />
                 </View>
-            </Animated.View>
+
+                {/* Bottom Section */}
+                <View style={styles.bottomSection}>
+                    <TouchableOpacity
+                        style={styles.primaryButton}
+                        onPress={() => navigation.navigate('Name')}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.buttonText}>Get Started</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.loginLink}>
+                        <Text style={styles.loginText}>
+                            Already have an account? <Text style={styles.primaryTextSmall}>Log in</Text>
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
         </View>
     );
 }
@@ -107,70 +92,116 @@ export default function WelcomeScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.background,
+        backgroundColor: '#020617',
     },
-    backgroundGradient: {
+    imageSection: {
+        width: '100%',
+        height: height * 0.35, // Reduced from 0.45 to 0.35
+        padding: 16,
+        paddingTop: 40,
+    },
+    backgroundImage: {
+        flex: 1,
+        borderRadius: 24,
+        overflow: 'hidden',
+    },
+    gradientOverlay: {
         ...StyleSheet.absoluteFillObject,
     },
-    content: {
+    contentSection: {
         flex: 1,
+        paddingHorizontal: 24,
+        justifyContent: 'space-between', // Ensures even distribution
+        paddingBottom: 40,
+    },
+    header: {
         alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 32,
+        marginTop: -10,
     },
-    logoContainer: {
-        width: 140,
-        height: 140,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 32,
-    },
-    glowCircle: {
-        position: 'absolute',
-        width: 160,
-        height: 160,
-        borderRadius: 80,
-        backgroundColor: theme.colors.primary,
-        ...theme.shadows.glow,
-    },
-    logoInner: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    logoText: {
+    title: {
         fontSize: 40,
         fontWeight: '800',
         color: '#FFFFFF',
-        letterSpacing: 2,
-    },
-    appName: {
-        fontSize: 40,
-        fontWeight: '800',
-        color: theme.colors.text,
-        letterSpacing: 8,
-        marginBottom: 16,
-    },
-    tagline: {
-        fontSize: 16,
-        color: theme.colors.textSecondary,
         textAlign: 'center',
-        lineHeight: 24,
-        marginBottom: 48,
+        lineHeight: 46,
     },
-    features: {
-        marginBottom: 48,
+    primaryText: {
+        color: '#6366F1',
     },
-    featureItem: {
-        fontSize: 16,
-        color: theme.colors.textSecondary,
-        marginBottom: 12,
+    subtitle: {
+        fontSize: 15,
+        color: '#94A3B8',
         textAlign: 'center',
+        marginTop: 8,
+        lineHeight: 22,
+        paddingHorizontal: 20,
     },
-    buttonContainer: {
+    featuresContainer: {
+        gap: 8, // Reduced gap
+        marginVertical: 10,
+    },
+    featureCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(30, 41, 59, 0.4)',
+        borderRadius: 12,
+        padding: 12, // Reduced padding
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.05)',
+    },
+    iconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    featureTextContainer: {
+        flex: 1,
+    },
+    featureTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#FFFFFF',
+    },
+    featureDesc: {
+        fontSize: 11,
+        color: '#94A3B8',
+        marginTop: 1,
+    },
+    bottomSection: {
         width: '100%',
-        maxWidth: 320,
+    },
+    primaryButton: {
+        backgroundColor: '#6366F1',
+        height: 58, // Slightly smaller button
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 15,
+        elevation: 8,
+    },
+    buttonText: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#FFFFFF',
+    },
+    loginLink: {
+        marginTop: 16,
+        alignItems: 'center',
+    },
+    loginText: {
+        fontSize: 14,
+        color: '#64748B',
+        fontWeight: '500',
+    },
+    primaryTextSmall: {
+        color: '#6366F1',
+        fontWeight: '700',
     },
 });

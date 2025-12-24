@@ -1,15 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import Slider from '@react-native-community/slider';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Dimensions, StatusBar, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { theme } from '../theme/theme';
-import OnboardingLayout from '../components/OnboardingLayout';
-import { BlueprintButton } from '../components/BlueprintButton';
 import { saveUserData, getUserData } from '../services/userDataService';
+import { ArrowLeft, ArrowRight } from 'lucide-react-native';
+import { BlurView } from '@react-native-community/blur';
+import { Platform } from 'react-native';
+
+
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const ITEM_HEIGHT = 64; // Slightly larger for better touch/scan
+const RULER_HEIGHT = SCREEN_HEIGHT * 0.55; // Height of the ruler area
+
+// Generate heights from 120 to 220 cm
+const HEIGHTS = [];
+for (let h = 220; h >= 120; h--) {
+    HEIGHTS.push(h);
+}
 
 export default function HeightScreen({ navigation }) {
-    const [height, setHeight] = useState(170);
-    const [unit, setUnit] = useState('cm'); // 'cm' or 'ft'
+    const [selectedHeight, setSelectedHeight] = useState(170);
+    const [unit, setUnit] = useState('cm');
+    const flatListRef = useRef(null);
 
     useEffect(() => {
         loadData();
@@ -17,130 +31,457 @@ export default function HeightScreen({ navigation }) {
 
     const loadData = async () => {
         const data = await getUserData();
-        if (data.height) setHeight(data.height);
+        const h = data.height || 170;
+        setSelectedHeight(h);
+
+        const index = 220 - h;
+        setTimeout(() => {
+            flatListRef.current?.scrollToOffset({
+                offset: index * ITEM_HEIGHT,
+                animated: false
+            });
+        }, 100);
     };
 
     const handleNext = async () => {
-        await saveUserData({ height });
+        await saveUserData({ height: selectedHeight });
         navigation.navigate('Weight');
     };
 
-    // Convert cm to ft-in
+    const onScroll = (e) => {
+        const offsetY = e.nativeEvent.contentOffset.y;
+        const index = Math.round(offsetY / ITEM_HEIGHT);
+        const height = HEIGHTS[index];
+        if (height !== undefined && height !== selectedHeight) {
+            setSelectedHeight(height);
+        }
+    };
+
     const cmToFtIn = (cm) => {
         const totalInches = cm / 2.54;
         const feet = Math.floor(totalInches / 12);
         const inches = Math.round(totalInches % 12);
+        if (inches === 12) return { feet: feet + 1, inches: 0 };
         return { feet, inches };
     };
 
-    const displayValue = () => {
-        if (unit === 'cm') {
-            return `${height} cm`;
-        }
-        const { feet, inches } = cmToFtIn(height);
-        return `${feet}'${inches}"`;
+    const { feet, inches } = cmToFtIn(selectedHeight);
+
+    const renderItem = ({ item }) => {
+        const isMajor = item % 5 === 0;
+
+        return (
+            <View style={styles.tickRow}>
+                <View style={[
+                    styles.tick,
+                    isMajor ? styles.majorTick : styles.minorTick
+                ]} />
+                {isMajor && (
+                    <Text style={styles.tickLabel}>
+                        {item}
+                    </Text>
+                )}
+            </View>
+        );
     };
 
     return (
-        <OnboardingLayout
-            title="What's your height?"
-            step={4}
-            onBack={() => navigation.goBack()}
-            footer={
-                <BlueprintButton title="CONTINUE" onPress={handleNext} />
-            }
-        >
-            {/* Unit toggle */}
-            <View style={styles.toggleContainer}>
-                <TouchableOpacity
-                    style={[styles.toggleBtn, unit === 'cm' && styles.toggleActive]}
-                    onPress={() => setUnit('cm')}
-                >
-                    <Text style={[styles.toggleText, unit === 'cm' && styles.toggleTextActive]}>cm</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.toggleBtn, unit === 'ft' && styles.toggleActive]}
-                    onPress={() => setUnit('ft')}
-                >
-                    <Text style={[styles.toggleText, unit === 'ft' && styles.toggleTextActive]}>ft</Text>
-                </TouchableOpacity>
-            </View>
+        <View style={styles.container}>
+            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-            {/* Value display */}
-            <View style={styles.valueContainer}>
-                <Text style={styles.valueText}>{displayValue()}</Text>
-            </View>
+            {/* Background Gradients */}
+            <LinearGradient
+                colors={['#1e1b4b', '#020617', '#020617']}
+                style={StyleSheet.absoluteFill}
+            />
 
-            {/* Slider */}
-            <View style={styles.sliderContainer}>
-                <Slider
-                    style={styles.slider}
-                    value={height}
-                    onValueChange={(val) => setHeight(Math.round(val))}
-                    minimumValue={120}
-                    maximumValue={220}
-                    step={1}
-                    minimumTrackTintColor={theme.colors.primary}
-                    maximumTrackTintColor={theme.colors.borderMuted}
-                    thumbTintColor={theme.colors.primary}
-                />
-                <View style={styles.sliderLabels}>
-                    <Text style={styles.sliderLabel}>120 cm</Text>
-                    <Text style={styles.sliderLabel}>220 cm</Text>
+            <SafeAreaView style={styles.safeArea}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => navigation.goBack()}
+                    >
+                        <ArrowLeft size={24} color="#FFF" />
+                    </TouchableOpacity>
+                    <View style={styles.headerTitleContainer}>
+                        <Text style={styles.headerSubtitle}>BODY DETAILS</Text>
+                    </View>
+                    <View style={{ width: 40 }} />
                 </View>
-            </View>
-        </OnboardingLayout>
+
+                {/* Title Section */}
+                <View style={styles.titleContainer}>
+                    <Text style={styles.title}>What is your height?</Text>
+                    <Text style={styles.subtitle}>This helps us calculate your calorie needs.</Text>
+                </View>
+
+                {/* Main Selection Area */}
+                <View style={styles.mainContent}>
+
+                    {/* Left: Value Display */}
+                    <View style={styles.valueSection}>
+                        <View style={styles.largeValueWrapper}>
+                            <View style={styles.valueRow}>
+                                {unit === 'cm' ? (
+                                    <>
+                                        <Text style={styles.largeValueText}>{selectedHeight}</Text>
+                                        <Text style={styles.valueUnitLabel}>cm</Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Text style={styles.largeValueText}>{feet}</Text>
+                                        <Text style={styles.valueUnitLabelSmall}>ft</Text>
+                                        <Text style={styles.largeValueTextSmall}>{inches}</Text>
+                                        <Text style={styles.valueUnitLabelSmall}>in</Text>
+                                    </>
+                                )}
+                            </View>
+                        </View>
+
+                        {/* Unit Toggle */}
+                        <View style={styles.toggleContainer}>
+                            <TouchableOpacity
+                                style={[styles.toggleBtn, unit === 'cm' && styles.toggleActive]}
+                                onPress={() => setUnit('cm')}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={[styles.toggleText, unit === 'cm' && styles.toggleTextActive]}>CM</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.toggleBtn, unit === 'ft' && styles.toggleActive]}
+                                onPress={() => setUnit('ft')}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={[styles.toggleText, unit === 'ft' && styles.toggleTextActive]}>FT</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    {/* Right: Ruler Scroller */}
+                    <View style={styles.rulerSection}>
+                        
+                        {Platform.OS === 'ios' && (
+                            <BlurView
+                                style={styles.rulerBlurTop}
+                                blurType="dark"
+                                blurAmount={20}
+                            />
+                        )}
+
+                        {/* Center Pointer Indicator - Constrained to middle of ruler section */}
+                        <View style={styles.indicatorContainer}>
+                            <View style={styles.blueIndicatorLine} />
+                            <View style={styles.centerDot} />
+                        </View>
+
+                        <FlatList
+                            ref={flatListRef}
+                            data={HEIGHTS}
+                            renderItem={renderItem}
+                            keyExtractor={(item) => item.toString()}
+                            showsVerticalScrollIndicator={false}
+                            snapToInterval={ITEM_HEIGHT}
+                            decelerationRate="fast"
+                            onScroll={onScroll}
+                            scrollEventThrottle={16}
+                            contentContainerStyle={{
+                                paddingVertical: (RULER_HEIGHT / 2) - (ITEM_HEIGHT / 2),
+                            }}
+                            getItemLayout={(data, index) => ({
+                                length: ITEM_HEIGHT,
+                                offset: ITEM_HEIGHT * index,
+                                index,
+                            })}
+                            style={{ height: RULER_HEIGHT }}
+                        />
+
+                        {/* Gradient Overlays for Ruler Fade */}
+                        {Platform.OS === 'android' && (
+                            <LinearGradient
+                                colors={[
+                                    'rgba(2,6,23,0.9)',
+                                    'rgba(2,6,23,0.6)',
+                                    'rgba(2,6,23,0)'
+                                ]}
+                                locations={[0, 0.6, 1]}
+                                style={styles.rulerFadeOverlayTop}
+                                pointerEvents="none"
+                            />
+                        )}
+                        <LinearGradient
+                            colors={['rgba(2, 6, 23, 0)', '#020617', '#020617']}
+                            locations={[0, 0.8, 1]}
+                            style={styles.rulerFadeOverlayBottom}
+                            pointerEvents="none"
+                        />
+                    </View>
+
+                </View>
+
+                {/* Footer Button */}
+                <View style={styles.footer}>
+                    <TouchableOpacity
+                        style={styles.continueButton}
+                        onPress={handleNext}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.continueButtonText}>Continue</Text>
+                        <ArrowRight size={20} color="#FFF" style={{ marginLeft: 8 }} />
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    toggleContainer: {
+    container: {
+        flex: 1,
+        backgroundColor: '#020617',
+    },
+    safeArea: {
+        flex: 1,
+    },
+    header: {
         flexDirection: 'row',
-        alignSelf: 'center',
-        backgroundColor: theme.colors.backgroundCard,
-        borderRadius: theme.borders.radius.full,
-        padding: 4,
-        marginBottom: 40,
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 10,
+        height: 48,
     },
-    toggleBtn: {
-        paddingHorizontal: 28,
-        paddingVertical: 12,
-        borderRadius: theme.borders.radius.full,
+    backButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
     },
-    toggleActive: {
-        backgroundColor: theme.colors.primary,
+    headerTitleContainer: {
+        flex: 1,
+        alignItems: 'center',
     },
-    toggleText: {
+    headerSubtitle: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: '#818CF8',
+        letterSpacing: 2,
+        opacity: 0.8,
+    },
+    titleContainer: {
+        paddingHorizontal: 24,
+        paddingTop: 12,
+        alignItems: 'center',
+    },
+    title: {
+        fontSize: 32,
+        fontWeight: '800',
+        color: '#FFFFFF',
+        lineHeight: 38,
+    },
+    subtitle: {
+        fontSize: 14,
+        color: 'rgba(129, 140, 248, 0.6)',
+        marginTop: 6,
+    },
+    mainContent: {
+        flex: 1,
+        flexDirection: 'row',
+        marginTop: 30,
+    },
+    valueSection: {
+        flex: 1.2,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    largeValueWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 150,
+    },
+    valueRow: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+    },
+    largeValueText: {
+        fontSize: 84,
+        fontWeight: '800',
+        color: '#6366F1',
+        letterSpacing: -2,
+        textShadowColor: 'rgba(99, 102, 241, 0.4)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 25,
+    },
+    largeValueTextSmall: {
+        fontSize: 64,
+        fontWeight: '800',
+        color: '#6366F1',
+        marginLeft: 6,
+        textShadowColor: 'rgba(99, 102, 241, 0.4)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 20,
+    },
+    valueUnitLabel: {
+        fontSize: 22,
+        fontWeight: '600',
+        color: 'rgba(129, 140, 248, 0.4)',
+        marginLeft: 4,
+    },
+    valueUnitLabelSmall: {
         fontSize: 16,
         fontWeight: '600',
-        color: theme.colors.textSecondary,
+        color: 'rgba(129, 140, 248, 0.4)',
+        marginLeft: 2,
+    },
+    toggleContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#0F172A',
+        borderRadius: 30,
+        padding: 6,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.05)',
+        marginTop: 20,
+        width: 140,
+        justifyContent: 'center',
+    },
+    toggleBtn: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 25,
+    },
+    toggleActive: {
+        backgroundColor: '#6366F1',
+    },
+    toggleText: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#64748B',
     },
     toggleTextActive: {
-        color: '#FFF',
+        color: '#FFFFFF',
     },
-    valueContainer: {
-        alignItems: 'center',
-        marginBottom: 60,
+    rulerSection: {
+        flex: 0.8,
+        position: 'relative',
+        borderLeftWidth: 1,
+        borderLeftColor: 'rgba(255, 255, 255, 0.05)',
     },
-    valueText: {
-        fontSize: 72,
-        fontWeight: '700',
-        color: theme.colors.text,
+    indicatorContainer: {
+        position: 'absolute',
+        top: RULER_HEIGHT / 2,
+        left: 0,
+        right: 0,
+        height: 2,
+        zIndex: 100,
     },
-    sliderContainer: {
-        paddingHorizontal: 8,
+    blueIndicatorLine: {
+        position: 'absolute',
+        left: 0,
+        top: -1,
+        width: 32,
+        height: 3,
+        backgroundColor: '#6366F1',
+        borderTopRightRadius: 4,
+        borderBottomRightRadius: 4,
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 10,
     },
-    slider: {
-        width: '100%',
-        height: 50,
+    centerDot: {
+        position: 'absolute',
+        left: -4,
+        top: -3.5,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1.5,
+        borderColor: '#6366F1',
     },
-    sliderLabels: {
+    rulerFadeOverlayTop: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 140,
+        zIndex: 100,
+    },
+    rulerFadeOverlayBottom: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 140,
+        zIndex: 100,
+    },
+    tickRow: {
+        height: ITEM_HEIGHT,
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 8,
+        alignItems: 'center',
+        paddingLeft: 20,
     },
-    sliderLabel: {
-        fontSize: 12,
-        color: theme.colors.textDim,
+    tick: {
+        backgroundColor: '#94A3B8',
+        marginRight: 16,
+    },
+    majorTick: {
+        width: 24,
+        height: 2,
+        opacity: 0.3,
+    },
+    minorTick: {
+        width: 12,
+        height: 1,
+        opacity: 0.15,
+    },
+    selectedTick: {
+        backgroundColor: '#FFFFFF',
+        width: 24,
+        height: 2,
+        opacity: 1,
+    },
+    tickLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#94A3B8',
+        opacity: 0.4,
+    },
+    selectedLabel: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        opacity: 1,
+    },
+    footer: {
+        padding: 24,
+        paddingBottom: 40,
+    },
+    continueButton: {
+        height: 58,
+        backgroundColor: '#6366F1',
+        borderRadius: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 15,
+        elevation: 8,
+    },
+    continueButtonText: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#FFFFFF',
+    },
+    rulerBlurTop: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 120,
+        zIndex: 150,
     },
 });
