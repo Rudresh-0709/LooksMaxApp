@@ -41,7 +41,7 @@ export default function BirthYearScreen({ navigation }) {
 
     const handleNext = async () => {
         await saveUserData({ birthYear: selectedYear });
-        navigation.navigate('Gender');
+        navigation.navigate('Height');
     };
 
     const onScroll = Animated.event(

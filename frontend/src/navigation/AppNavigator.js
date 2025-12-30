@@ -13,7 +13,6 @@ import ProfileScreen from '../screens/ProfileScreen';
 import WelcomeScreen from '../onboarding/WelcomeScreen';
 import NameScreen from '../onboarding/NameScreen';
 import BirthYearScreen from '../onboarding/BirthYearScreen';
-import GenderScreen from '../onboarding/GenderScreen';
 import HeightScreen from '../onboarding/HeightScreen';
 import WeightScreen from '../onboarding/WeightScreen';
 import BodyTypeScreen from '../onboarding/BodyTypeScreen';
@@ -73,7 +72,6 @@ export default function AppNavigator() {
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="Name" component={NameScreen} />
         <Stack.Screen name="BirthYear" component={BirthYearScreen} />
-        <Stack.Screen name="Gender" component={GenderScreen} />
         <Stack.Screen name="Height" component={HeightScreen} />
         <Stack.Screen name="Weight" component={WeightScreen} />
         <Stack.Screen name="BodyType" component={BodyTypeScreen} />
